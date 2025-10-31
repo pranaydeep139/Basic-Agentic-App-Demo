@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask API with AI Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-top: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .btn-delete {
+            background-color: #dc3545;
+        }
+        .btn-delete:hover {
+            background-color: #c82333;
+        }
+        .btn-update {
+            background-color: #28a745;
+        }
+        .btn-update:hover {
+            background-color: #218838;
+        }
+        .btn-tool {
+            background-color: #6c757d;
+            font-size: 12px;
+                        padding: 8px 15px;
+        }
+        .btn-tool:hover {
+            background-color: #5a6268;
+        }
+        #items-list {
+            margin-top: 30px;
+        }
+        .item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .item h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .item p {
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .item-id, .item-category {
+            color: #999;
+            font-size: 12px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: none;
+        }
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #eee;
+            margin: 40px 0;
+        }
+        #aiResult, #agentResult, #toolResult {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e6f7ff;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+            display: none;
+        }
+        #aiResult strong, #agentResult strong, #toolResult strong {
+            color: #0056b3;
+        }
+        .agent-section {
+            background-color: #f0f8ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .chat-history {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        .chat-message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .chat-message.user {
+            background-color: #e3f2fd;
+            text-align: right;
+        }
+        .chat-message.assistant {
+            background-color: #f1f8e9;
+        }
+        .chat-message.tool {
+            background-color: #fff3e0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Items Manager with AI Agent</h1>
+        
+        <div id="message" class="message"></div>
+
+        <!-- AI Agent Section -->
+        <div class="agent-section">
+            <h2>🧠 AI Agent with Tools</h2>
+            <p>Ask the AI agent anything! It has access to multiple tools and can make decisions.</p>
+            
+            <div class="form-group">
+                <label for="agentQuery">Your Query:</label>
+                <textarea id="agentQuery" rows="3" placeholder="e.g., What's 25 * 4? or Tell me a random fact, or What time is it?"></textarea>
+            </div>
+            <button onclick="queryAgent()">Ask Agent</button>
+            <button onclick="clearAgentChat()">Clear Chat</button>
+
+            <div id="agentResult">
+                <strong>Agent Response:</strong>
+                <div id="agentResponse"></div>
+            </div>
+
+            <div class="chat-history" id="chatHistory" style="display: none;">
+                <strong>Chat History:</strong>
+                <div id="chatMessages"></div>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Direct Tool Testing Section -->
+        <div class="agent-section">
+            <h2>🔧 Test Tools Directly</h2>
+            <p>Click any button to test a tool directly:</p>
+            
+            <div class="tool-grid">
+                <button class="btn-tool" onclick="testTool('calculator', {expression: '15 * 8'})">Calculator (15*8)</button>
+                <button class="btn-tool" onclick="testTool('random_fact_generator', {})">Random Fact</button>
+                <button class="btn-tool" onclick="testTool('current_datetime', {})">Current Time</button>
+                <button class="btn-tool" onclick="testTool('word_counter', {text: 'Hello world from AI'})">Word Counter</button>
+                <button class="btn-tool" onclick="testTool('reverse_text', {text: 'Hello AI'})">Reverse Text</button>
+                <button class="btn-tool" onclick="testTool('coin_flip', {})">Coin Flip</button>
+                <button class="btn-tool" onclick="testTool('dice_roll', {sides: 20})">Roll D20</button>
+            </div>
+
+            <div id="toolResult">
+                <strong>Tool Result:</strong>
+                <div id="toolResponse"></div>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Item Management Section -->
+        <h2>📦 Manage Items</h2>
+        <div class="form-group">
+            <label for="name">Name:</label>
+            <input type="text" id="name" placeholder="Enter item name">
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea id="description" rows="3" placeholder="Enter item description"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="category">Category (optional, or use AI below):</label>
+            <input type="text" id="category" placeholder="e.g., Electronics, Food">
+        </div>
+
+        <button onclick="createItem()">Add Item</button>
+        <button onclick="loadItems()">Refresh List</button>
+
+        <div id="items-list"></div>
+
+        <hr>
+
+        <!-- AI Categorization Section -->
+        <h2>🏷️ AI Categorization Tool</h2>
+        <p>Enter an item description below to get an AI-suggested category.</p>
+        <div class="form-group">
+            <label for="aiDescription">Description for AI Analysis:</label>
+            <textarea id="aiDescription" rows="4" placeholder="e.g., A sturdy hammer with a comfortable grip."></textarea>
+        </div>
+        <button onclick="categorizeDescription()">Get AI Category Suggestion</button>
+        <button onclick="applySuggestedCategory()">Apply to New Item</button>
+
+        <div id="aiResult">
+            <strong>Suggested Category:</strong> <span id="suggestedCategory"></span>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5001/api/items';
+        const AI_API_URL = 'http://localhost:5001/api/ai/categorize';
+        const AGENT_API_URL = 'http://localhost:5001/api/agent/query';
+        const TOOL_API_URL = 'http://localhost:5001/api/tools/execute';
+
+        let chatMessages = [];
+
+        // Show message
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Load all items
+        async function loadItems() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                displayItems(data.items);
+            } catch (error) {
+                showMessage('Error loading items', 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        // Display items
+        function displayItems(items) {
+            const itemsList = document.getElementById('items-list');
+            if (items.length === 0) {
+                itemsList.innerHTML = '<p>No items found</p>';
+                return;
+            }
+
+            itemsList.innerHTML = items.map(item => `
+                <div class="item">
+                    <span class="item-id">ID: ${item.id}</span>
+                    <h3>${item.name}</h3>
+                    <p>${item.description}</p>
+                    <span class="item-category">Category: ${item.category || 'N/A'}</span>
+                    <button class="btn-update" onclick="promptUpdateItem(${item.id}, '${item.name}', '${item.description}', '${item.category}')">Update</button>
+                    <button class="btn-delete" onclick="deleteItem(${item.id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        // Create new item
+        async function createItem() {
+            const name = document.getElementById('name').value;
+            const description = document.getElementById('description').value;
+            const category = document.getElementById('category').value;
+
+            if (!name || !description) {
+                showMessage('Please fill in Name and Description fields.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, description, category })
+                });
+
+                if (response.ok) {
+                    showMessage('Item created successfully', 'success');
+                    document.getElementById('name').value = '';
+                    document.getElementById('description').value = '';
+                    document.getElementById('category').value = '';
+                    loadItems();
+                } else {
+                    const errorData = await response.json();
+                    showMessage(`Error creating item: ${errorData.error || response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showMessage('Error creating item', 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        // Prompt for Update item
+        function promptUpdateItem(id, currentName, currentDescription, currentCategory) {
+            const newName = prompt('Enter new name:', currentName);
+            const newDescription = prompt('Enter new description:', currentDescription);
+            const newCategory = prompt('Enter new category:', currentCategory);
+
+            if (newName !== null && newDescription !== null && newCategory !== null) {
+                updateItem(id, newName, newDescription, newCategory);
+            }
+        }
+
+        // Update item
+        async function updateItem(id, name, description, category) {
+            try {
+                const response = await fetch(`${API_URL}/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, description, category })
+                });
+
+                if (response.ok) {
+                    showMessage('Item updated successfully', 'success');
+                    loadItems();
+                } else {
+                    const errorData = await response.json();
+                    showMessage(`Error updating item: ${errorData.error || response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showMessage('Error updating item', 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        // Delete item
+        async function deleteItem(id) {
+            if (!confirm('Are you sure you want to delete this item?')) return;
+
+            try {
+                const response = await fetch(`${API_URL}/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showMessage('Item deleted successfully', 'success');
+                    loadItems();
+                } else {
+                    const errorData = await response.json();
+                    showMessage(`Error deleting item: ${errorData.error || response.statusText}`, 'error');
+                }
+            } catch (error) {
+                showMessage('Error deleting item', 'error');
+                console.error('Error:', error);
+            }
+        }
+
+        // AI Categorization Functions
+        async function categorizeDescription() {
+            const aiDescription = document.getElementById('aiDescription').value;
+            const aiResultDiv = document.getElementById('aiResult');
+            const suggestedCategorySpan = document.getElementById('suggestedCategory');
+
+            if (!aiDescription) {
+                showMessage('Please enter a description for AI analysis.', 'error');
+                return;
+            }
+
+            aiResultDiv.style.display = 'block';
+            suggestedCategorySpan.textContent = 'Loading AI suggestion...';
+
+            try {
+                const response = await fetch(AI_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ description: aiDescription })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    suggestedCategorySpan.textContent = data.suggested_category;
+                    showMessage('AI categorization successful!', 'success');
+                } else {
+                    suggestedCategorySpan.textContent = `Error: ${data.error || response.statusText}`;
+                    showMessage(`AI Error: ${data.error || response.statusText}`, 'error');
+                }
+            } catch (error) {
+                suggestedCategorySpan.textContent = 'Error communicating with AI service.';
+                showMessage('Error communicating with AI service.', 'error');
+                console.error('AI Categorization Error:', error);
+            }
+        }
+
+        function applySuggestedCategory() {
+            const suggestedCategory = document.getElementById('suggestedCategory').textContent;
+            if (suggestedCategory && suggestedCategory !== 'Loading AI suggestion...' && !suggestedCategory.startsWith('Error:')) {
+                document.getElementById('category').value = suggestedCategory;
+                showMessage('Suggested category applied to new item form.', 'success');
+            } else {
+                showMessage('No valid AI category to apply. Please run AI analysis first.', 'error');
+            }
+        }
+
+        // --- New Agent Functions ---
+        async function queryAgent() {
+            const query = document.getElementById('agentQuery').value;
+            const agentResultDiv = document.getElementById('agentResult');
+            const agentResponseDiv = document.getElementById('agentResponse');
+            const chatHistoryDiv = document.getElementById('chatHistory');
+
+            if (!query) {
+                showMessage('Please enter a query for the agent.', 'error');
+                return;
+            }
+
+            agentResultDiv.style.display = 'block';
+            chatHistoryDiv.style.display = 'block';
+            agentResponseDiv.textContent = '🤔 Agent is thinking...';
+
+            // Add user message to chat
+            chatMessages.push({ role: 'user', content: query });
+            updateChatDisplay();
+
+            try {
+                const response = await fetch(AGENT_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const agentResponse = data.response || 'No response from agent';
+                    agentResponseDiv.textContent = agentResponse;
+                    
+                    // Add agent response to chat
+                                        chatMessages.push({ role: 'assistant', content: agentResponse });
+                    updateChatDisplay();
+                    
+                    showMessage('Agent responded successfully!', 'success');
+                    
+                    // Clear the query input
+                    document.getElementById('agentQuery').value = '';
+                } else {
+                    agentResponseDiv.textContent = `Error: ${data.error || response.statusText}`;
+                    showMessage(`Agent Error: ${data.error || response.statusText}`, 'error');
+                }
+            } catch (error) {
+                agentResponseDiv.textContent = 'Error communicating with agent.';
+                showMessage('Error communicating with agent.', 'error');
+                console.error('Agent Query Error:', error);
+            }
+        }
+
+        function updateChatDisplay() {
+            const chatMessagesDiv = document.getElementById('chatMessages');
+            chatMessagesDiv.innerHTML = chatMessages.map(msg => {
+                const roleClass = msg.role === 'user' ? 'user' : (msg.role === 'tool' ? 'tool' : 'assistant');
+                const roleLabel = msg.role === 'user' ? '👤 You' : (msg.role === 'tool' ? '🔧 Tool' : '🤖 Agent');
+                return `
+                    <div class="chat-message ${roleClass}">
+                        <strong>${roleLabel}:</strong> ${msg.content}
+                    </div>
+                `;
+            }).join('');
+            
+            // Scroll to bottom
+            chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+        }
+
+        function clearAgentChat() {
+            chatMessages = [];
+            document.getElementById('chatMessages').innerHTML = '';
+            document.getElementById('agentResponse').textContent = '';
+            document.getElementById('agentResult').style.display = 'none';
+            document.getElementById('chatHistory').style.display = 'none';
+            document.getElementById('agentQuery').value = '';
+            showMessage('Chat history cleared', 'success');
+        }
+
+        // --- Tool Testing Functions ---
+        async function testTool(toolName, args) {
+            const toolResultDiv = document.getElementById('toolResult');
+            const toolResponseDiv = document.getElementById('toolResponse');
+
+            toolResultDiv.style.display = 'block';
+            toolResponseDiv.textContent = '⚙️ Executing tool...';
+
+            try {
+                const response = await fetch(TOOL_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        tool_name: toolName,
+                        args: args
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    toolResponseDiv.innerHTML = `
+                        <strong>Tool:</strong> ${data.tool}<br>
+                        <strong>Result:</strong> ${data.result}
+                    `;
+                    showMessage('Tool executed successfully!', 'success');
+                } else {
+                    toolResponseDiv.textContent = `Error: ${data.error || response.statusText}`;
+                    showMessage(`Tool Error: ${data.error || response.statusText}`, 'error');
+                }
+            } catch (error) {
+                toolResponseDiv.textContent = 'Error executing tool.';
+                showMessage('Error executing tool.', 'error');
+                console.error('Tool Execution Error:', error);
+            }
+        }
+
+        // Load items on page load
+        window.onload = loadItems;
+    </script>
+</body>
+</html>
