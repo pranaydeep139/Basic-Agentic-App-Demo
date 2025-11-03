@@ -126,7 +126,15 @@ def call_model(state: AgentState):
     print(f"CALL_MODEL: Last message type: {type(messages[-1]).__name__}")
     print(f"CALL_MODEL: Last message content preview: {str(messages[-1])[:200]}...")
     
-    response = llm_with_tools.invoke(messages)
+    # Check if the last message is a ToolMessage - if so, we need to prompt for a final answer
+    if isinstance(messages[-1], ToolMessage):
+        # Add a system message to prompt for a final response
+        messages_with_prompt = messages + [
+            HumanMessage(content="Based on the tool results above, please provide a clear and complete answer to my original question.")
+        ]
+        response = llm_with_tools.invoke(messages_with_prompt)
+    else:
+        response = llm_with_tools.invoke(messages)
     
     print(f"CALL_MODEL: Response type: {type(response).__name__}")
     print(f"CALL_MODEL: Response has tool_calls: {hasattr(response, 'tool_calls') and bool(response.tool_calls)}")
